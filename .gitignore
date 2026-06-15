@@ -74,6 +74,8 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+test*.ipynb
+
 
 # IPython
 profile_default/
@@ -163,3 +165,7 @@ cython_debug/
 scripts/training/wandb/
 ._*
 *.so
+
+*.png
+*.parquet
+.RData
