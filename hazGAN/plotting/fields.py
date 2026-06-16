@@ -11,7 +11,7 @@ from ..statistics import get_extremal_coeffs_nd
 
 def plot(fake, train, func, fields=[0, 1], figsize=1.,
          cmap=CMAP, vmin=None, vmax=None,
-         title="Untitled", cbar_label="", **func_kws
+         title="Untitled", cbar_label="", extent=None, **func_kws
          ) -> plt.Figure:
     """
     Plot relationships between climate fields.
@@ -36,8 +36,8 @@ def plot(fake, train, func, fields=[0, 1], figsize=1.,
     cmap.set_over(cmap(.99))
 
     fig, axs, cax = makegrid(1, 2, figsize=figsize)
-    im = contourmap(train_res, ax=axs[0], vmin=vmin, vmax=vmax, cmap=cmap)
-    _  = contourmap(fake_res, ax=axs[-1], vmin=vmin, vmax=vmax, cmap=cmap)
+    im = contourmap(train_res, ax=axs[0], vmin=vmin, vmax=vmax, cmap=cmap, extent=extent)
+    _  = contourmap(fake_res, ax=axs[-1], vmin=vmin, vmax=vmax, cmap=cmap, extent=extent)
 
     axs[0].set_title("ERA5", y=-0.15)
     axs[-1].set_title("HazGAN", y=-0.15)

@@ -25,7 +25,7 @@ def load_config_from_yaml(configfile:str) -> dict:
 
 
 def rescale(x:np.ndarray) -> np.ndarray:
-    return (x - x.min() / (x.max() - x.min()))
+    return (x - x.min()) / (x.max() - x.min())
 
 
 def rescale_vector(x:np.ndarray) -> np.ndarray:

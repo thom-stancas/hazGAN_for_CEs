@@ -163,9 +163,6 @@ if __name__ == "__main__":
     # %% ----Make a 2D version of this plot----
     from matplotlib.ticker import PercentFormatter
 
-    # set font to Helvetica
-    plt.rcParams['font.family'] = 'sans-serif'
-    plt.rcParams['font.sans-serif'] = 'Helvetica'
 
     # set frame on for top and right axes
     plt.rcParams['axes.spines.top'] = True

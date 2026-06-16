@@ -20,10 +20,6 @@ from hazGAN.plotting import misc
 from hazGAN.plotting import scatter
 
 
-# make sure font is Helvetica
-plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['font.sans-serif'] = 'Helvetica'
-
 
 FIELD     = 0
 MODEL     = 30 # 24 used for Zenodo / NHESS submission, 2 looks okay (5000 samples)
@@ -102,9 +98,6 @@ if __name__ == "__main__":
     # %% histograms
     if True:
         reload(misc)
-
-        plt.rcParams['font.family'] = 'sans-serif'
-        plt.rcParams['font.sans-serif'] = 'Helvetica'
 
         FAKE, REAL = samples_x, x
         fig, ax = misc.saffirsimpson_barchart(FAKE, REAL, title="", scale="fives")
