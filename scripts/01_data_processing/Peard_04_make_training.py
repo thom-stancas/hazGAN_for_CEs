@@ -11,6 +11,7 @@ Input files:
 Output files:
 -------------
     - data.nc
+    
 """
 # %%
 import os
@@ -79,111 +80,111 @@ def main(datadir):
     events = pd.read_parquet(os.path.join(datadir, INFILES[2]))
     times = pd.to_datetime(events[['storm', 'time']].groupby('storm').first()['time'].reset_index(drop=True))
     
-    # Check fit quality and that it looks right
-    if VISUALISATIONS:
-        import scipy.stats
-        for var in  FIELDS:
-            p_crit = 0.05
-            # s0 = gdf["storm"].min()
+    # # Check fit quality and that it looks right
+    # if VISUALISATIONS:
+    #     import scipy.stats
+    #     for var in  FIELDS:
+    #         p_crit = 0.05
+    #         # s0 = gdf["storm"].min()
 
-            ds = gdf.set_index(['lat', 'lon', 'storm']).to_xarray().isel(storm=0)
+    #         ds = gdf.set_index(['lat', 'lon', 'storm']).to_xarray().isel(storm=0)
 
-            fig, axs = plt.subplots(1, 4, figsize=(16, 3), sharex=True, sharey=True,
-            subplot_kw={'projection': ccrs.PlateCarree()})
+    #         fig, axs = plt.subplots(1, 4, figsize=(16, 3), sharex=True, sharey=True,
+    #         subplot_kw={'projection': ccrs.PlateCarree()})
 
-            # ax4 = fig.add_subplot(1, 5, 5, projection=None)
-            ax4 = fig.add_axes([0.825, 0.1, 0.15, 0.8])   # [left, bottom, width, height]
-            plt.tight_layout()
-            plt.subplots_adjust(right=0.8) 
+    #         # ax4 = fig.add_subplot(1, 5, 5, projection=None)
+    #         ax4 = fig.add_axes([0.825, 0.1, 0.15, 0.8])   # [left, bottom, width, height]
+    #         plt.tight_layout()
+    #         plt.subplots_adjust(right=0.8) 
 
-            cmap = "PuBu_r"
-            p_cmap = plt.get_cmap(cmap)
-            p_cmap.set_under("crimson")
+    #         cmap = "PuBu_r"
+    #         p_cmap = plt.get_cmap(cmap)
+    #         p_cmap.set_under("crimson")
 
-            ds[f"pk_{var}"].plot(ax=axs[0], cmap=p_cmap, vmin=p_crit, cbar_kwargs={'label': None})
-            ds[f"thresh_{var}"].plot(ax=axs[1], cmap=cmap, cbar_kwargs={'label': None})
-            ds[f"scale_{var}"].plot(ax=axs[2], cmap=cmap, cbar_kwargs={'label': None})
-            ds[f"shape_{var}"].plot(ax=axs[3], cmap=cmap, add_colorbar=False) #, vmin=-0.81, vmax=0.28)
+    #         ds[f"pk_{var}"].plot(ax=axs[0], cmap=p_cmap, vmin=p_crit, cbar_kwargs={'label': None})
+    #         ds[f"thresh_{var}"].plot(ax=axs[1], cmap=cmap, cbar_kwargs={'label': None})
+    #         ds[f"scale_{var}"].plot(ax=axs[2], cmap=cmap, cbar_kwargs={'label': None})
+    #         ds[f"shape_{var}"].plot(ax=axs[3], cmap=cmap, add_colorbar=False) #, vmin=-0.81, vmax=0.28)
 
-            # plot the density for three sample grid points
-            if var == 'u10':
-                dist = getattr(scipy.stats, 'weibull_min')
-            else:
-                dist = getattr(scipy.stats, 'genpareto')
+    #         # plot the density for three sample grid points
+    #         if var == 'u10':
+    #             dist = getattr(scipy.stats, 'weibull_min')
+    #         else:
+    #             dist = getattr(scipy.stats, 'genpareto')
 
-            # plot some densities
-            shapes_all = gdf[f'shape_{var}'].values
-            percentiles = np.linspace(0.01, 0.99, 10)
-            shapes = gdf[f'shape_{var}'].quantile(percentiles)
-            loc    = gdf[f'thresh_{var}'].mean()
-            scale  = gdf[f'scale_{var}'].mean()
+    #         # plot some densities
+    #         shapes_all = gdf[f'shape_{var}'].values
+    #         percentiles = np.linspace(0.01, 0.99, 10)
+    #         shapes = gdf[f'shape_{var}'].quantile(percentiles)
+    #         loc    = gdf[f'thresh_{var}'].mean()
+    #         scale  = gdf[f'scale_{var}'].mean()
 
-            vmin = min(shapes_all)
-            vmax = max(shapes_all)
-            norm = plt.Normalize(vmin, vmax)
-            colors = [plt.get_cmap(cmap)(norm(value)) for value in shapes]
+    #         vmin = min(shapes_all)
+    #         vmax = max(shapes_all)
+    #         norm = plt.Normalize(vmin, vmax)
+    #         colors = [plt.get_cmap(cmap)(norm(value)) for value in shapes]
             
-            for i, shape in enumerate(shapes):
-                u = np.linspace(0.95, 0.999, 100)
-                x = dist.ppf(u, shape) #, loc=loc, scale=scale)
-                y = dist.pdf(x, shape) #, loc=loc, scale=scale)
-                ax4.plot(x, y, label=f"ξ={shape:.2f}", color=colors[i])
+    #         for i, shape in enumerate(shapes):
+    #             u = np.linspace(0.95, 0.999, 100)
+    #             x = dist.ppf(u, shape) #, loc=loc, scale=scale)
+    #             y = dist.pdf(x, shape) #, loc=loc, scale=scale)
+    #             ax4.plot(x, y, label=f"ξ={shape:.2f}", color=colors[i])
 
-                # axis cleanup
-                def percentage_formatter(x, pos):
-                    return f'{100 * x:.0f}%'  # Multiply by 100 and add % sign
+    #             # axis cleanup
+    #             def percentage_formatter(x, pos):
+    #                 return f'{100 * x:.0f}%'  # Multiply by 100 and add % sign
                 
-                ax4.set_xlabel("")
-                ax4.set_ylabel("")
-                ax4.yaxis.set_major_formatter(percentage_formatter)
-                ax4.tick_params(direction='in')
-                ax4.yaxis.set_label_position("right")
-                # ax4.tick_params(axis='y', pad=-40)
+    #             ax4.set_xlabel("")
+    #             ax4.set_ylabel("")
+    #             ax4.yaxis.set_major_formatter(percentage_formatter)
+    #             ax4.tick_params(direction='in')
+    #             ax4.yaxis.set_label_position("right")
+    #             # ax4.tick_params(axis='y', pad=-40)
 
-            # add colorbar for shape
-            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-            sm.set_array([])
-            cbar = fig.colorbar(sm, ax=ax4)
-            # set label to none
-            cbar.set_label(None)
-            cbar.set_label("ξ")
-            # put cbar label on LEFT of it
-            cbar.ax.yaxis.set_label_position('left')
-            # rotate the cbar label to be UPRIGHT
-            cbar.ax.set_ylabel('ξ', rotation=0, labelpad=15)
-            # cbar.set_ticks(shapes)
-            # cbar.set_ticklabels([f"{s:.2f}" for s in shapes])
+    #         # add colorbar for shape
+    #         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    #         sm.set_array([])
+    #         cbar = fig.colorbar(sm, ax=ax4)
+    #         # set label to none
+    #         cbar.set_label(None)
+    #         cbar.set_label("ξ")
+    #         # put cbar label on LEFT of it
+    #         cbar.ax.yaxis.set_label_position('left')
+    #         # rotate the cbar label to be UPRIGHT
+    #         cbar.ax.set_ylabel('ξ', rotation=0, labelpad=15)
+    #         # cbar.set_ticks(shapes)
+    #         # cbar.set_ticklabels([f"{s:.2f}" for s in shapes])
 
-            # ax4.legend()
+    #         # ax4.legend()
 
-            if var == 'u10':
-                axs[0].set_title("H₀: X~Weibull(ξ,μ,σ)")
-            else:
-                axs[0].set_title("H₀: X~GPD(ξ,μ,σ)")
+    #         if var == 'u10':
+    #             axs[0].set_title("H₀: X~Weibull(ξ,μ,σ)")
+    #         else:
+    #             axs[0].set_title("H₀: X~GPD(ξ,μ,σ)")
 
-            axs[1].set_title("μ")
-            axs[2].set_title("σ")
-            axs[3].set_title("ξ")
+    #         axs[1].set_title("μ")
+    #         axs[2].set_title("σ")
+    #         axs[3].set_title("ξ")
 
-            for ax in axs[:-1].ravel():
-                ax.add_feature(cartopy.feature.COASTLINE, linewidth=0.5)
-                ax.set_xlabel("Longitude")
-                ax.set_ylabel("Latitude")
+    #         for ax in axs[:-1].ravel():
+    #             ax.add_feature(cartopy.feature.COASTLINE, linewidth=0.5)
+    #             ax.set_xlabel("Longitude")
+    #             ax.set_ylabel("Latitude")
 
-            # fig.suptitle(f"Fit for ERA5 {var.upper()}, n = {gdf['storm'].nunique()}")
-            print(gdf[gdf[f"pk_{var}"] < p_crit]["grid"].nunique(), "significant p-values")
+    #         # fig.suptitle(f"Fit for ERA5 {var.upper()}, n = {gdf['storm'].nunique()}")
+    #         print(gdf[gdf[f"pk_{var}"] < p_crit]["grid"].nunique(), "significant p-values")
 
-            if False:
-                fig, axs = plt.subplots(1, 4, figsize=(18, 3))
-                gdf['pk_u10'].hist(ax=axs[0], **hist_kws)
-                gdf[f"thresh_{var}"].hist(ax=axs[1], **hist_kws)
-                gdf[f"scale_{var}"].hist(ax=axs[2], **hist_kws)
-                gdf[f"shape_{var}"].hist(ax=axs[3], **hist_kws)
-                axs[1].set_title("μ")
-                axs[2].set_title("σ")
-                axs[3].set_title("ξ")
+    #         if False:
+    #             fig, axs = plt.subplots(1, 4, figsize=(18, 3))
+    #             gdf['pk_u10'].hist(ax=axs[0], **hist_kws)
+    #             gdf[f"thresh_{var}"].hist(ax=axs[1], **hist_kws)
+    #             gdf[f"scale_{var}"].hist(ax=axs[2], **hist_kws)
+    #             gdf[f"shape_{var}"].hist(ax=axs[3], **hist_kws)
+    #             axs[1].set_title("μ")
+    #             axs[2].set_title("σ")
+    #             axs[3].set_title("ξ")
                 
-            # fig.savefig(f"/Users/alison/Desktop/f01_{var}.png", dpi=300)
+    #         # fig.savefig(f"/Users/alison/Desktop/f01_{var}.png", dpi=300)
 
     # return gdf # TODO: remove this line later
     #  important: check ecdfs are in (0, 1)

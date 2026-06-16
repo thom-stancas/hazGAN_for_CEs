@@ -14,6 +14,10 @@ import pandas as pd
 import xarray as xr
 from scipy.ndimage import gaussian_filter
 from scipy.stats import genpareto
+from dotenv import load_dotenv
+
+#Load environment variables
+load_dotenv()
 
 ROOT_DIR = Path(os.environ["ROOT_DIR"])
 HOT_DRY_EVENTS_DIR = Path(os.environ["HOT_DRY_EVENTS_DIR"])

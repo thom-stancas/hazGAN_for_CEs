@@ -1,59 +1,78 @@
 rm(list = ls())
+.libPaths(c("~/R/libs/hazGAN", .libPaths()))
 library(arrow)
+library(dotenv)
 
-# set up env (depends if running or sourcing script)
-try(setwd(getSrcDirectory(function(){})[1]))
-try(setwd(dirname(rstudioapi::getActiveDocumentContext()$path)))
+# Load environment variables from .env file
+load_dot_env(".env")
 
-source("utils/utils.R")
-source("utils/settings.R")
+ROOT_DIR <- Sys.getenv("ROOT_DIR")
+setwd(ROOT_DIR)
+PARQUETDIR <- Sys.getenv("PARQUETDIR")
 
-readRenviron("../../.env")
+source("scripts/01_data_processing/utils/utils.R")
+source("scripts/01_data_processing/utils/settings.R")
 
-WD         <- Sys.getenv("ERA5DIR")
-DRYRUN     <- FALSE
-NDRYRUN    <- 8
+WD      <- Sys.getenv("ERA5DIR")
+DRYRUN  <- FALSE
+NDRYRUN <- 1000
 
-daily    <- read_parquet(paste0(WD, "/", "daily.parquet"))
-metadata <- read_parquet(paste0(WD, "/", "storms_metadata.parquet"))
+#%%######## LOAD FOOTPRINT DATA ################################################
 
-# subset to mini dataset if it's a dry run
-if(DRYRUN) {
-  subgrid <- unique(daily$grid)[1:NDRYRUN]
-  daily   <- daily[daily$grid %in% subgrid,]
+# Read NetCDF files matching the pattern
+data <- read_parquet(file.path(PARQUETDIR, "event_footprints_long_jja.parquet"))
+
+# Optional dry run: keep only a the first NDRYRUN grids (for testing) so that we fit the dist across all events but only on a subset of the data
+if (DRYRUN) {
+  print(paste0("Dry run: keeping only the first ", NDRYRUN, " grids for testing..."))
+  data <- data %>%
+    filter(grid %in% unique(grid)[1:NDRYRUN])
 }
 
-#%%######## TRANSFORM STORMS ###################################################
+#%%######## TRANSFORM EVENTS ###################################################
 print("Tranforming fields...")
-storms_wind <- weibull_transformer(daily, metadata, "u10", Q);warnings()
-storms_mslp <- gpd_transformer(daily, metadata, "msl", Q);warnings()
-storms_tp   <- gpd_transformer(daily, metadata, "tp", Q);warnings()
 
+hot_dry_temp <- gpd_transformer(data, "max_temp", Q); warnings()
+hot_dry_spi  <- gpd_transformer(data, "max_neg_spi", Q); warnings()
+
+# empirical-only for event days
+hot_dry_event_days <- empirical_transformer(data, "num_event_days"); warnings()
+
+#%%######## PUT TOGETHER #######################################################
 print("Done. Putting it all together...")
+
 renamer <- function(df, var) {
-  # rename all fields for joining dataframes
   df <- df %>%
     rename_with(~ paste0(., ".", var),
-                -c("grid", "storm", "storm.rp", "variable"))
-  df <- df %>% rename_with(~ var, "variable")
+                -c("grid", "event_id", "event.rp", "lat", "lon", "variable"))
+  df <- df %>%
+    rename_with(~ var, "variable")
   return(df)
 }
 
-storms_wind <- renamer(storms_wind, "u10")
-storms_mslp <- renamer(storms_mslp, "mslp")
-storms_tp   <- renamer(storms_tp, "tp")
+hot_dry_temp       <- renamer(hot_dry_temp, "max_temp")
+hot_dry_spi        <- renamer(hot_dry_spi, "max_neg_spi")
+hot_dry_event_days <- renamer(hot_dry_event_days, "num_event_days")
 
-storms <- storms_wind %>%
-  inner_join(storms_mslp, by = c("grid", "storm", "storm.rp")) %>%
-  inner_join(storms_tp, by = c("grid", "storm", "storm.rp"))
+events <- hot_dry_temp %>%
+  inner_join(hot_dry_spi, by = c("grid", "event_id", "event.rp", "lat", "lon")) %>%
+  inner_join(hot_dry_event_days, by = c("grid", "event_id", "event.rp", "lat", "lon"))
 
-storms$thresh.q <- Q # keep track of threshold used
+events$thresh.q <- Q  # keep track of threshold used
 
-########### SAVE RESULTS #######################################################
+#%%######## SAVE RESULTS #######################################################
 if (!DRYRUN) {
   print("Saving...")
-  write_parquet(storms, paste0(WD, "/", "storms.parquet"))
-  cat("\nSaved as:", paste0(WD, "/", "storms.parquet"))
-  print(paste0("Finished! ", length(unique(storms$storm)), " events processed."))
+  out_file <- file.path(PARQUETDIR, "events_jja.parquet")
+  write_parquet(events, out_file)
+  cat("\nSaved as:", out_file)
+  print(paste0("Finished! ", length(unique(events$event_id)), " events processed."))
+} else {
+  print("Saving dry run...")
+  out_file <- file.path(PARQUETDIR, "events_dryrun.parquet")
+  write_parquet(events, out_file)
+  cat("\nSaved as:", out_file)
+  print(paste0("Finished! ", length(unique(events$event_id)), " events processed."))
 }
-########### END ################################################################
+
+#%%######## END ################################################################
