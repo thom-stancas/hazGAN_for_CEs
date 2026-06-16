@@ -65,20 +65,81 @@ def pearson(array):
     return corrs
 
 
-def tail_dependence(array):
+def tail_dependence(array, thresholds=np.arange(0.8, 0.99, 0.01), dtype=np.float32):
+    """
+    Fast upper-tail dependence matrix for one spatial field.
 
+    Parameters
+    ----------
+    array : np.ndarray
+        Array of shape (n, h, w), assumed to have uniform marginals.
+        n = number of samples/images.
+        h, w = spatial dimensions.
+
+    thresholds : array-like
+        Thresholds over which to average the finite-threshold tail dependence.
+
+    dtype : np.dtype
+        Numeric dtype used for matrix multiplication and output.
+
+    Returns
+    -------
+    chi : np.ndarray
+        Array of shape (h*w, h*w), where
+
+            chi[i, j] ≈ mean_t P(pixel_j > t | pixel_i > t)
+
+        averaged over the supplied thresholds.
+    """
+    print("Computing tail dependence matrix...")
+    
     n, h, w = array.shape
-    array = array.reshape(n, h * w)
+    p = h * w
 
-    chi_values = np.empty((h * w, h * w))
-    for i in tqdm(range(h * w), desc="Calculating tail dependence coefficients"):
-        for j in range(i):
-            chi = _tail_dependence_coeff(array[:, i], array[:, j])
-            chi_values[i, j] = chi
-            chi_values[j, i] = chi
+    x = array.reshape(n, p)
 
-    return chi_values
+    chi_sum = np.zeros((p, p), dtype=dtype)
+    chi_count = np.zeros((p, p), dtype=dtype)
 
+    for t in tqdm(thresholds, desc="Tail thresholds"):
+        # Boolean exceedance matrix: shape (n, p)
+        # exc[s, i] = True if sample s, pixel i exceeds threshold t
+        exc = x > t
+
+        # denom[i] = number of samples where pixel i exceeds threshold t
+        denom = exc.sum(axis=0).astype(dtype)
+
+        # Convert to numeric so matrix multiplication gives joint exceedance counts.
+        exc_float = exc.astype(dtype)
+
+        # numer[i, j] = number of samples where both pixel i and pixel j exceed t
+        numer = exc_float.T @ exc_float
+
+        # vals[i, j] = P(pixel_j > t | pixel_i > t)
+        vals = np.divide(
+            numer,
+            denom[:, None],
+            out=np.zeros_like(numer, dtype=dtype),
+            where=denom[:, None] > 0,
+        )
+
+        valid = denom > 0
+
+        chi_sum += vals
+        chi_count += valid[:, None]
+
+    chi = np.divide(
+        chi_sum,
+        chi_count,
+        out=np.zeros_like(chi_sum),
+        where=chi_count > 0,
+    )
+
+    # Optional but usually sensible:
+    # P(pixel_i > t | pixel_i > t) = 1 when there are exceedances.
+    np.fill_diagonal(chi, 1.0)
+
+    return chi
 
 def _tail_dependence_coeff(u, v):
     """
@@ -106,5 +167,3 @@ def _tail_dependence_coeff(u, v):
             lambdas.append(lambda_t)
 
     return np.mean(lambdas) if lambdas else 0
-
-# %%
