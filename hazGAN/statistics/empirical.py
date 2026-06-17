@@ -27,6 +27,46 @@ def semiparametric_quantile(u, params, distn="genpareto", *args, **kwargs) -> ca
     return SemiParametric(u, loc, scale, shape, distn=distn).inverse
 
 
+def hurdle_quantile(x: np.ndarray, p0: float = 0.5, *args, **kwargs) -> callable:
+    """Inverse hurdle empirical CDF.
+
+    x = 0 for u <= p0
+    x = F_+^{-1}((u - p0) / (1 - p0)) for u > p0
+
+    where F_+ is the empirical CDF of positive training values.
+    """
+    return HurdleEmpirical(x, p0=p0).inverse
+
+
+class HurdleEmpirical:
+    def __init__(self, x, p0: float = 0.5, alpha=0, beta=0) -> None:
+        x = np.asarray(x)
+        x = x[np.isfinite(x)]
+
+        self.p0 = p0
+        self.x_pos = x[x > 0]
+
+        if len(self.x_pos) < 1:
+            warn("No positive values found; hurdle quantile will return zeros.")
+            self.pos_quantile = None
+        else:
+            self.pos_quantile = Empirical(self.x_pos, alpha=alpha, beta=beta).inverse
+
+        self.inverse = self._quantile
+
+    def _quantile(self, u):
+        u = np.asarray(u)
+        out = np.zeros_like(u, dtype=float)
+
+        mask = u > self.p0
+
+        if self.pos_quantile is not None:
+            u_pos = (u[mask] - self.p0) / (1 - self.p0)
+            u_pos = np.clip(u_pos, 0, 1)
+            out[mask] = self.pos_quantile(u_pos)
+
+        return out
+    
 # class definitions
 class Empirical(object):
     """Empirical distribution object.

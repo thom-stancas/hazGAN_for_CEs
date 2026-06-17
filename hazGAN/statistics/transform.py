@@ -7,11 +7,12 @@ if __name__ == "__main__":
     from base import *
     from empirical import quantile
     from empirical import semiparametric_quantile as semiparametric_quantile0
+    from empirical import hurdle_quantile
 else:
     from .base import *
     from .empirical import quantile
     from .empirical import semiparametric_quantile as semiparametric_quantile0
-
+    from .empirical import hurdle_quantile
 
 
 def invPIT(
@@ -40,11 +41,14 @@ def invPIT(
     np.ndarray
         Transformed marginals with same shape as input u
     """
-    u = inv_gumbel(u).numpy() if gumbel_margins else u
+    u = inv_gumbel(u) if gumbel_margins else u
+    eps = np.finfo(float).eps
+    u = np.clip(u, eps, 1 - eps)
 
     # assert x.shape[1:] == u.shape[1:], (
     #     f"Marginal dimensions mismatch: {u.shape[1:]} != {x.shape[1:]}"
     # )
+    
     semiparametric_quantile = partial(semiparametric_quantile0, distribution=distribution)
 
     # flatten along spatial dimensions
@@ -65,14 +69,20 @@ def invPIT(
             )    
 
     # vectorised numpy transform
-    distns = ["weibull", "genpareto", "genpareto"]
+    fields = ["max_temp", "max_neg_spi", "num_event_days"]
+
     def transform(x, u, theta, i, c):
         x_i = x[:, i, c]
         u_i = u[:, i, c]
+        field = fields[c]
+
+        if field == "num_event_days":
+            return hurdle_quantile(x_i, p0=0.5)(u_i)
+
         theta_i = theta[:, i, c] if theta is not None else None
-        distn = distns[c]
+
         return (
-            semiparametric_quantile(x_i, theta_i, distn)(u_i)
+            semiparametric_quantile(x_i, theta_i, distribution)(u_i)
             if theta is not None
             else quantile(x_i)(u_i)
         )
@@ -99,7 +109,7 @@ def invPITDataset(ds:xr.Dataset, theta_var:str="params",
     theta = ds[theta_var].values if theta_var in ds else None
 
     x_inv = invPIT(u, x, theta, gumbel_margins)
-    x_inv = xr.DataArray(x_inv, dims=ds[x_var].dims, coords=ds[x_var].coords)
+    x_inv = xr.DataArray(x_inv, dims=ds[u_var].dims, coords=ds[u_var].coords)
 
     return x_inv
 
