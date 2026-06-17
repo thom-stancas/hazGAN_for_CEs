@@ -36,7 +36,7 @@ hot_dry_temp <- gpd_transformer(data, "max_temp", Q); warnings()
 hot_dry_spi  <- gpd_transformer(data, "max_neg_spi", Q); warnings()
 
 # empirical-only for event days
-hot_dry_event_days <- empirical_transformer(data, "num_event_days"); warnings()
+hot_dry_event_days <- gpd_transformer(data, "num_event_days", Q); warnings()
 
 #%%######## PUT TOGETHER #######################################################
 print("Done. Putting it all together...")

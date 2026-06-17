@@ -49,7 +49,7 @@ monthly_medians <- function(df, var) {
 
 
 
-ecdf <- function(x) {
+ecdf_ <- function(x) {
     #' Empirical cumulative distribution function (ECDF)
     #'
     #' Create an empirical CDF function from a numeric vector. The returned
@@ -92,21 +92,33 @@ ecdf <- function(x) {
 
 
 
-scdf <- function(train, loc, scale, shape, cdf = pgpd){
+scdf <- function(train, var, loc, scale, shape, cdf = pgpd){
     #' Semi-parametric CDF function for exceedances above a threshold.
     #' Creates a calculator which computes the semi-parametric CDF for a given 
     #' set of values based on a fitted GPD model.
-    #' 
+
+
+    
     # Note, trialing using excesses and setting loc=0
     # This is for flexibility with cdf choice
     calculator <- function(x){
-        u <- ecdf(train)(x) # First compute the empirical CDF for all values in x
-        pthresh <- ecdf(train)(loc) # And the empirical CDF at the threshold
+
+        if (var == "num_event_days") {
+            u <- hurdle_ecdf(train)(x)
+            pthresh <- hurdle_ecdf(train)(loc)
+        }
+        else {
+            u <- ecdf_(train)(x) # First compute the empirical CDF for all values in x
+            pthresh <- ecdf_(train)(loc) # And the empirical 
+            # CDF at the threshold
+        }
+        
         tail_mask <- x > loc # Identify values in x that exceed the threshold
         x_tail <- x[tail_mask] 
         exceedances <- x_tail - loc
         u_tail <- 1 - (1 - pthresh) * (1 - cdf(exceedances, scale=scale, shape=shape)) 
         # Compute the semi-parametric CDF for exceedances
+        # Uses the cdf function provided (default is pgpd for GPD)
         u[tail_mask] <- u_tail
         return(u)
     }
@@ -114,25 +126,38 @@ scdf <- function(train, loc, scale, shape, cdf = pgpd){
 }
 
 hurdle_ecdf <- function(train) {
+    #' Hurdle empirical cumulative distribution function (ECDF) for non-negative data.
+    #' Computes the empirical CDF for non-negative data, treating zeros as a separate "hurdle" category.
+    #' Sets the CDF to 0.5 for zeros, and computes the empirical CDF for positive values. 
+
+    # Remove non-finite values from the training data
     train <- train[is.finite(train)]
+    # Get the positive training values for the empirical CDF
     pos_train <- train[train > 0]
 
     function(x) {
+        # Initialize the output vector with NA values
         u <- rep(NA_real_, length(x))
 
+        # Create masks for zero and positive values in x
         zero_mask <- x == 0
         pos_mask    <- x > 0
 
-        u[zero_mask] <- 0
+        # Set the CDF to 0.5 for zeros
+        u[zero_mask] <- 0.5
 
+        # For positive values, compute the empirical CDF using the positive training values
         if (length(pos_train) > 0) {
-            Fpos <- ecdf(pos_train)
+            Fpos <- ecdf_(pos_train)
             u[pos_mask] <- 0.5 + 0.5 * Fpos(x[pos_mask])
         } else {
             u[pos_mask] <- 1
         }
 
+        # Set the CDF to NA for negative values (if any)
         u[x < 0] <- NA_real_
+
+        # Return the computed CDF values
         u
     }
 }
@@ -533,7 +558,7 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
 
         # But can still fit empirical CDF if there is at least 1 training sample
         if (nrow(train) >= 1) {
-            maxima$ecdf <- ecdf(train$variable)(maxima$variable)
+            maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
         } else {
             maxima$ecdf <- NA
         }
@@ -547,25 +572,25 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
     # ----------------------------------------------------------------------------
     # If empirical_only is TRUE and the variable is "num_events", skip GPD fitting
 
-    if (empirical_only && var == "num_events") {
-        maxima$thresh <- NA
-        maxima$scale <- NA
-        maxima$shape <- NA
-        maxima$p <- NA
-        maxima$pk <- NA
+    # if (empirical_only && var == "num_events") {
+    #     maxima$thresh <- NA
+    #     maxima$scale <- NA
+    #     maxima$shape <- NA
+    #     maxima$p <- NA
+    #     maxima$pk <- NA
 
-        if (nrow(train) >= 1) {
-            trans <- hurdle_ecdf(train$variable)
-            maxima$ecdf <- trans(maxima$variable)
-        } else {
-            maxima$ecdf <- NA
-        }
+    #     if (nrow(train) >= 1) {
+    #         trans <- hurdle_ecdf(train$variable)
+    #         maxima$ecdf <- trans(maxima$variable)
+    #     } else {
+    #         maxima$ecdf <- NA
+    #     }
 
-        maxima$scdf <- maxima$ecdf
-        maxima$box.test <- NA
+    #     maxima$scdf <- maxima$ecdf
+    #     maxima$box.test <- NA
         
-        return(maxima)
-    }
+    #     return(maxima)
+    # }
 
     # ---------------------------------------------------------------------------
     
@@ -594,6 +619,7 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         # Since cdf here is pgpd
         maxima$scdf <- scdf(
             train = train$variable,
+            var = var,
             loc = thresh,
             scale = scale,
             shape = shape,
@@ -602,7 +628,11 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
 
         # Compute the empirical CDF still for the maxima based on the training data
         # Just for comparison, not used in the GAN training if scdf is good
-        maxima$ecdf <- ecdf(train$variable)(maxima$variable)
+        if (var == "num_event_days") {
+            maxima$ecdf <- hurdle_ecdf(train$variable)(maxima$variable)
+        } else {
+            maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
+        }
 
 
         excesses <- maxima$variable[maxima$variable > thresh]
@@ -623,7 +653,7 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         maxima$shape  <- NA
         maxima$p      <- 0
         maxima$pk     <- 0
-        maxima$ecdf   <- ecdf(train$variable)(maxima$variable)
+        maxima$ecdf   <- ecdf_(train$variable)(maxima$variable)
         maxima$scdf   <- maxima$ecdf
         maxima$box.test <- NA
 
