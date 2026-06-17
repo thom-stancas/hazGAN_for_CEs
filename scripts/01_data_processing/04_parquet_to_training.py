@@ -125,6 +125,28 @@ def main():
     events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja.parquet")
     event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja.parquet")
 
+    # raw transformed fields back to event_id x lat x lon
+    idx = events_df.set_index(["event_id", "lat", "lon"])
+
+    raw_extra = (
+        idx[
+            [
+                "shape.max_temp", "shape.max_neg_spi", "shape.num_event_days",
+                "scale.max_temp", "scale.max_neg_spi", "scale.num_event_days",
+                "pk.max_temp", "pk.max_neg_spi", "pk.num_event_days",
+                "thresh.max_temp", "thresh.max_neg_spi", "thresh.num_event_days",
+            ]
+        ]
+        .rename(columns=lambda c: c.replace(".", "_"))
+        .astype("float64")
+        .to_xarray()
+        .to_array("field")
+    )
+
+    # Plot the GPD fits for the fields
+    os.makedirs(FOOTPRINTS_PARQUET_DIR / "plots", exist_ok=True)
+
+    plot_gpd_fits(raw_extra, var_list = ["max_temp", "max_neg_spi", "num_event_days"], save_dir=f"{FOOTPRINTS_PARQUET_DIR}/plots")
 
     # Check the columns in the DataFrame
     assert "event_id" in events_df.columns, "event_id column is missing"
