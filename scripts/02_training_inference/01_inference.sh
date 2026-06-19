@@ -6,7 +6,7 @@
 #SBATCH --time=05:00:00
 #SBATCH --dependency=afterok:116190
 
-MODEL="00012-images-low_shot-kimg300-color-translation-cutout"
+MODEL="00013-images-low_shot-kimg300-color-translation-cutout"
 STEP=300
 DATADIR=/data/ncas1/tb261/stylegan_events/training-runs/${MODEL}
 

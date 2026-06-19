@@ -76,16 +76,15 @@ def invPIT(
         u_i = u[:, i, c]
         field = fields[c]
 
+        theta_i = theta[:, i, c] if theta is not None else None
+ 
+        if theta is not None:
+            return semiparametric_quantile(x_i, theta_i, distribution)(u_i)
+
         if field == "num_event_days":
             return hurdle_quantile(x_i, p0=0.5)(u_i)
 
-        theta_i = theta[:, i, c] if theta is not None else None
-
-        return (
-            semiparametric_quantile(x_i, theta_i, distribution)(u_i)
-            if theta is not None
-            else quantile(x_i)(u_i)
-        )
+        return quantile(x_i)(u_i)
 
     quantiles = np.array([
         transform(x, u, theta, i, channel)
