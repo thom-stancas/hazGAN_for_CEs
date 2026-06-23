@@ -116,6 +116,7 @@ scdf <- function(train, loc, scale, shape, cdf = pgpd){
 hurdle_ecdf <- function(train) {
     train <- train[is.finite(train)]
     pos_train <- train[train > 0]
+    p_0 <- len(train[train == 0]) / len(train) / 2
 
     function(x) {
         u <- rep(NA_real_, length(x))
@@ -123,17 +124,17 @@ hurdle_ecdf <- function(train) {
         zero_mask <- x == 0
         pos_mask    <- x > 0
 
-        u[zero_mask] <- 0
+        u[zero_mask] <- p_0
 
         if (length(pos_train) > 0) {
             Fpos <- ecdf(pos_train)
-            u[pos_mask] <- 0.5 + 0.5 * Fpos(x[pos_mask])
+            u[pos_mask] <- p_0 + p_0 * Fpos(x[pos_mask])
         } else {
-            u[pos_mask] <- 1
+            u[pos_mask] <- p_0
         }
 
         u[x < 0] <- NA_real_
-        u
+        list(u = u, p_0 = p_0)
     }
 }
 
@@ -501,7 +502,8 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
     # If there are no valid maxima, return NULL
     if (nrow(maxima) == 0) return(NULL)
 
-
+    # 
+    maxima$p_0 <- NA_real_ 
     # ---------------------------------------------------------------------------
     # 2 CASES: BOTH TO REMOVE HOLDOUT YEARS FROM TRAINING DATA
     # 1. If the gridcell has an "event_year" column, use it to filter the training data.
@@ -555,12 +557,13 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         maxima$pk <- NA
 
         if (nrow(train) >= 1) {
-            trans <- hurdle_ecdf(train$variable)
+            trans, p_0 <- hurdle_ecdf(train$variable)
             maxima$ecdf <- trans(maxima$variable)
         } else {
             maxima$ecdf <- NA
         }
-
+        
+        maxima$p_0 <- p_0
         maxima$scdf <- maxima$ecdf
         maxima$box.test <- NA
         
@@ -706,7 +709,7 @@ marginal_transformer <- function(df, threshold_selector, var, q = NA, cdf = NULL
     # Keep only the relevant columns for the output
     fields <- c(
         "event_id", "variable", "time", "event.rp", "grid", "lat", "lon",
-        "thresh", "scale", "shape", "p", "pk", "ecdf", "scdf", "box.test"
+        "thresh", "scale", "shape", "p", "pk", "ecdf", "scdf", "box.test", "p_0"
     )
 
     transformed <- transformed[, fields]
