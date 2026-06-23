@@ -151,7 +151,7 @@ hurdle_ecdf <- function(train) {
             Fpos <- ecdf_(pos_train)
             u[pos_mask] <- 0.5 + 0.5 * Fpos(x[pos_mask])
         } else {
-            u[pos_mask] <- 1 # NOTE: This may need to be changed
+            u[pos_mask] <- 0.5 # NOTE: This may need to be changed
         }
 
         # Set the CDF to NA for negative values (if any)
