@@ -653,7 +653,11 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         maxima$shape  <- NA
         maxima$p      <- 0
         maxima$pk     <- 0
-        maxima$ecdf   <- ecdf_(train$variable)(maxima$variable)
+        if (var == "num_event_days") {
+            maxima$ecdf <- hurdle_ecdf(train$variable)(maxima$variable)
+        } else {
+            maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
+        }
         maxima$scdf   <- maxima$ecdf
         maxima$box.test <- NA
 
