@@ -156,7 +156,8 @@ def main():
     # Plot the GPD fits for the fields
     os.makedirs(FOOTPRINTS_PARQUET_DIR / "plots", exist_ok=True)
 
-    plot_gpd_fits(raw_extra, var_list = ["max_temp", "max_neg_spi", "num_event_days"], save_dir=f"{FOOTPRINTS_PARQUET_DIR}/plots")
+    plot_gpd_fits(raw_extra, var_list = ["max_temp", "max_neg_spi", "num_event_days"], 
+                   save_dir=f"{FOOTPRINTS_PARQUET_DIR}/plots")
 
 
     # ------------------------------------------------------------------------------------------
@@ -220,9 +221,7 @@ def main():
     events_df["event_start"] = pd.to_datetime(events_df["event_start"], utc=True, errors="coerce")
     events_df["event_end"] = pd.to_datetime(events_df["event_end"], utc=True, errors="coerce")
     events_df["time_max_temp"] = pd.to_datetime(events_df["time_max_temp"], utc=True, errors="coerce")
-    events_df["day_of_event"] = events_df["time_max_temp"] - events_df["event_start"]
-    events_df["day_of_event"] = pd.to_timedelta(events_df["day_of_event"])
-
+    events_df["day_of_event"] = (events_df["time_max_temp"] - events_df["event_start"]).dt.days.astype("float32")
 
     # Check ecdf ranges
     assert events_df["ecdf_max_temp"].max() <= 1
@@ -307,7 +306,7 @@ def main():
     # Reshape the data into the desired format for training
     X = events_df_full[FIELDS].to_numpy().reshape([num_events, ny, nx, len(FIELDS)])
 
-    D = events_df_full["day_of_event"].values.reshape(num_events, ny, nx)
+    D = events_df_full["day_of_event"].to_numpy(dtype="float32").reshape(num_events, ny, nx)
 
     U0 = events_df_full[[f"ecdf_{f}" for f in FIELDS]].to_numpy().reshape(num_events, ny, nx, len(FIELDS))
 
@@ -366,8 +365,16 @@ def main():
         "uniform":      (["event_id", "lat", "lon", "field"], U1),
         "ecdf":         (["event_id", "lat", "lon", "field"], U0),
         "anomaly":      (["event_id", "lat", "lon", "field"], X),
-        "day_of_storm": (["event_id", "lat", "lon"], D),
-        "storm_rp":     (["event_id"], z),
+        "day_of_event": (
+                            ["event_id", "lat", "lon"],
+                            D,
+                            {
+                                "units": "days",
+                                "long_name": "days since event start",
+                                "_FillValue": np.float32(9999),
+                            }
+                        ),
+        "event_rp":     (["event_id"], z),
         "duration":     (["event_id"], s),
         "params":       (["lat", "lon", "param", "field"], params),
         "grid":         (["lat", "lon"], grid),
