@@ -92,7 +92,7 @@ ecdf_ <- function(x) {
 
 
 
-scdf <- function(train, var, loc, scale, shape, cdf = pgpd){
+scdf_ <- function(train, var, loc, scale, shape, cdf = pgpd){
     #' Semi-parametric CDF function for exceedances above a threshold.
     #' Creates a calculator which computes the semi-parametric CDF for a given 
     #' set of values based on a fitted GPD model.
@@ -144,14 +144,14 @@ hurdle_ecdf <- function(train) {
         pos_mask    <- x > 0
 
         # Set the CDF to 0.5 for zeros
-        u[zero_mask] <- 0.5
+        u[zero_mask] <- 0
 
         # For positive values, compute the empirical CDF using the positive training values
         if (length(pos_train) > 0) {
             Fpos <- ecdf_(pos_train)
             u[pos_mask] <- 0.5 + 0.5 * Fpos(x[pos_mask])
         } else {
-            u[pos_mask] <- 0.5 # NOTE: This may need to be changed
+            u[pos_mask] <- 0 # NOTE: This may need to be changed
         }
 
         # Set the CDF to NA for negative values (if any)
@@ -375,7 +375,7 @@ gpdSeqTestsWithFallback <- function(var, thresholds, method, nsim) {
 }
 
 
-select_gpd_threshold <- function(var, nthresholds = 28, nsim = 5, alpha = 0.05) {
+select_gpd_threshold <- function(var, var_name, nthresholds = 28, nsim = 5, alpha = 0.05) {
     #' Selects the optimal threshold for GPD fitting using sequential goodness-of-fit tests.
     #' The function computes a sequence of thresholds based on quantiles of the input data, fits a GPD to the 
     #' exceedances above each threshold, and performs goodness-of-fit tests. The lowest threshold that passes 
@@ -391,7 +391,13 @@ select_gpd_threshold <- function(var, nthresholds = 28, nsim = 5, alpha = 0.05) 
     #' 
 
     # Create candidate thresholds based on quantiles of the data
-    thresholds <- quantile(var, probs = seq(0.7, 0.98, length.out = nthresholds))
+    if (var_name == "num_event_days") {
+        pos_train <- train$variable[train$variable > 0]
+        thresholds <- quantile(pos_train, probs = seq(0.1, 0.98, length.out = nthresholds+10))
+    } else {
+        # For continuous data, use quantiles to define thresholds
+        thresholds <- quantile(var, probs = seq(0.7, 0.98, length.out = nthresholds))
+    }
 
     # Runs sequential goodness-of-fit tests for each threshold and fits GPD
     # Will first try gpdSeqTests, and if it fails, will fall back to gpdBackupSeqTests
@@ -597,7 +603,7 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
 
     tryCatch({
 
-        fit <- threshold_selector(train$variable) # Defined by argument, 
+        fit <- threshold_selector(train$variable, var_name = var) # Defined by argument, 
                                                   # e.g., select_gpd_threshold or select_weibull_threshold
 
         # Extract the fitted parameters and goodness-of-fit statistics
@@ -617,7 +623,7 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
 
         # Compute the semi-parametric CDF for the maxima using the fitted GPD parameters
         # Since cdf here is pgpd
-        maxima$scdf <- scdf(
+        maxima$scdf <- scdf_(
             train = train$variable,
             var = var,
             loc = thresh,
