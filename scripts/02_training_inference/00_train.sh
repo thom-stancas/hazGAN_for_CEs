@@ -24,16 +24,24 @@
 #     --dest=${OUTDIR}/images.zip 
 
 
-export CUDA_HOME=$CONDA_PREFIX
-export PATH=$CUDA_HOME/bin:$PATH
-export CPATH=$CUDA_HOME/include:$CUDA_HOME/targets/x86_64-linux/include:$CPATH
-export LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/targets/x86_64-linux/lib:$LIBRARY_PATH
-export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$CUDA_HOME/targets/x86_64-linux/lib:$LD_LIBRARY_PATH
-export CXX=g++
-export TORCH_EXTENSIONS_DIR=/data/ncas1/tb261/torch_extensions
+source /opt/conda/etc/profile.d/conda.sh
+conda activate /data/ncas2/tb261/penvs/styleGAN
+export CUDA_HOME="$CONDA_PREFIX"
 
-rm -rf $TORCH_EXTENSIONS_DIR
-mkdir -p $TORCH_EXTENSIONS_DIR
+export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
+export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
+
+export PATH="$CONDA_PREFIX/bin:$CUDA_HOME/bin:$PATH"
+export CPATH="$CUDA_HOME/include:$CUDA_HOME/targets/x86_64-linux/include:${CPATH:-}"
+export LIBRARY_PATH="$CUDA_HOME/lib64:$CUDA_HOME/targets/x86_64-linux/lib:${LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$CUDA_HOME/lib64:$CUDA_HOME/targets/x86_64-linux/lib:${LD_LIBRARY_PATH:-}"
+
+export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0"
+export MAX_JOBS=1
+
+export TORCH_EXTENSIONS_DIR="/data/ncas1/tb261/torch_extensions/debug_${SLURM_JOB_ID:-manual}"
+rm -rf "$TORCH_EXTENSIONS_DIR"
+mkdir -p "$TORCH_EXTENSIONS_DIR"
 
 CUDA_VISIBLE_DEVICES=0,1
 
