@@ -124,8 +124,8 @@ def plot_gpd_fits(raw_extra, var_list=None, save_dir=None):
 def main():
 
     # Load the parquet files
-    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja.parquet")
-    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja.parquet")
+    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja_0_1_2.parquet")
+    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja_0_1_2.parquet")
 
 
     # ------------------------------------------------------------------------------------------
@@ -221,7 +221,7 @@ def main():
     events_df["event_end"] = pd.to_datetime(events_df["event_end"], utc=True, errors="coerce")
     events_df["time_max_temp"] = pd.to_datetime(events_df["time_max_temp"], utc=True, errors="coerce")
     events_df["day_of_event"] = events_df["time_max_temp"] - events_df["event_start"]
-    events_df["day_of_event"] = pd.to_timedelta(events_df["day_of_event"])
+    events_df["day_of_event"] = (events_df["time_max_temp"] - events_df["event_start"]).dt.days.astype("float32")
 
 
     # Check ecdf ranges
@@ -307,7 +307,7 @@ def main():
     # Reshape the data into the desired format for training
     X = events_df_full[FIELDS].to_numpy().reshape([num_events, ny, nx, len(FIELDS)])
 
-    D = events_df_full["day_of_event"].values.reshape(num_events, ny, nx)
+    D = events_df_full["day_of_event"].to_numpy(dtype="float32").reshape(num_events, ny, nx)
 
     U0 = events_df_full[[f"ecdf_{f}" for f in FIELDS]].to_numpy().reshape(num_events, ny, nx, len(FIELDS))
 
@@ -331,11 +331,20 @@ def main():
         .reset_index()
     )
 
+    num_event_days_p0 = (
+        events_df_full[["lat", "lon", "p_0_num_event_days"]]
+        .groupby(["lat", "lon"])
+        .mean()["p_0_num_event_days"]
+        .to_numpy()
+        .reshape(ny, nx)
+    )
+
     param_grid = gdf_params.sort_values(["lat", "lon"])
 
     thresh = param_grid[[f"thresh_{f}" for f in FIELDS]].to_numpy().reshape(ny, nx, len(FIELDS))
     scale  = param_grid[[f"scale_{f}" for f in FIELDS]].to_numpy().reshape(ny, nx, len(FIELDS))
     shape  = param_grid[[f"shape_{f}" for f in FIELDS]].to_numpy().reshape(ny, nx, len(FIELDS))
+
 
     params = np.stack([thresh, scale, shape], axis=-2)
 
@@ -366,10 +375,19 @@ def main():
         "uniform":      (["event_id", "lat", "lon", "field"], U1),
         "ecdf":         (["event_id", "lat", "lon", "field"], U0),
         "anomaly":      (["event_id", "lat", "lon", "field"], X),
-        "day_of_storm": (["event_id", "lat", "lon"], D),
-        "storm_rp":     (["event_id"], z),
+        "day_of_event": (
+                            ["event_id", "lat", "lon"],
+                            D,
+                            {
+                                "units": "days",
+                                "long_name": "days since event start",
+                                "_FillValue": np.float32(9999),
+                            }
+                        ),
+        "event_rp":     (["event_id"], z),
         "duration":     (["event_id"], s),
         "params":       (["lat", "lon", "param", "field"], params),
+        "p_0_num_event_days": (["lat", "lon"], num_event_days_p0),
         "grid":         (["lat", "lon"], grid),
     }, coords=coords, attrs=attrs)
 

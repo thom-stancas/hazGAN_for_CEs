@@ -6,7 +6,7 @@ for training data and parameters to convert images back to original scale.
 # quick defaults
 TRAINRES = 64
 STEP     = 300
-MODEL    = "00012-images-low_shot-kimg300-color-translation-cutout"
+MODEL    = "00019-images-low_shot-kimg300-color-translation-cutout"
 WD       = "/data/ncas1/tb261/"
 
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     # source training data
     datadir = os.path.join(WD, "training")
-    datadir = os.path.join(datadir, f"{TRAINRES}x{TRAINRES}")
+    datadir = os.path.join(datadir, f"{TRAINRES}x{TRAINRES}_jja_0_1_2")
 
     # model run directories
     resultsdir = os.path.join(WD, "stylegan_events/training-runs/", MODEL, "results")
@@ -129,6 +129,7 @@ print("\nLoading training data...")
 data = xr.open_dataset(os.path.join(datadir, "data.nc"))
 
 params = data["params"].values
+p_0_gridcell = data["p_0_num_event_days"].values
 train_x = data["anomaly"].values
 
 data_lat = data["lat"].values if "lat" in data.coords else np.arange(train_x.shape[1])
@@ -136,6 +137,7 @@ data_lon = data["lon"].values if "lon" in data.coords else np.arange(train_x.sha
 
 # Match historical orientation used by plotting / inverse transform
 params = np.flip(params, axis=0)
+p_0_gridcell = np.flip(p_0_gridcell, axis=0)
 train_x = np.flip(train_x, axis=1)
 data_lat = np.flip(data_lat)
 
@@ -233,6 +235,7 @@ ds_inv = xr.Dataset(
         "anomaly": train_x_ds["anomaly"],
         "gumbel": fake_gumbel_img["gumbel"],
         "params": params_ds["params"],
+        "p_0_num_event_days": (["lat", "lon"], p_0_gridcell),
     }
 )
 
@@ -245,6 +248,7 @@ fake = invPITDataset(
     theta_var="params",
     u_var="uniform",
     x_var="anomaly",
+    p0_var="p_0_num_event_days",
     gumbel_margins=False,
 )
 
@@ -262,7 +266,43 @@ generated_ds = generated_ds.assign_attrs({
     "description": "Back-transformed GAN samples on original variable scale",
 })
 
-out_nc = os.path.join(resultsdir, f"generated_backtransformed_{RES}x{RES}.nc")
+generated_ds = xr.Dataset(
+    data_vars={
+        "generated_png_scale": (
+            ["sample", "lat", "lon", "field"],
+            fake_img.astype(np.float32),
+        ),
+        "generated_gumbel": (
+            ["sample", "lat", "lon", "field"],
+            fake_gumbel.astype(np.float32),
+        ),
+        "generated_uniform": (
+            ["sample", "lat", "lon", "field"],
+            fake_u.astype(np.float32),
+        ),
+        "generated_backtransformed": (
+            ["sample", "lat", "lon", "field"],
+            fake.values.astype(np.float64),
+        ),
+    },
+    coords={
+        "sample": np.arange(fake_img.shape[0]),
+        "lat": data_lat,
+        "lon": data_lon,
+        "field": field_names,
+    },
+    attrs={
+        "model": MODEL,
+        "step": STEP,
+        "train_resolution": TRAINRES,
+        "sample_resolution": RES,
+    },
+)
+
+out_nc = os.path.join(
+    resultsdir,
+    f"generated_all_scales_{RES}x{RES}.nc",
+)
 generated_ds.to_netcdf(out_nc)
 
 print(f"Saved numeric back-transformed samples to: {out_nc}")

@@ -120,7 +120,7 @@ remaining = [c for c in df_out.columns if c not in front_cols]
 df_out = df_out[front_cols + remaining]
 
 # Save parquet
-df_out.to_parquet(f"{FOOTPRINTS_PARQUET_DIR}/event_footprints_long_jja.parquet", index=False)
+df_out.to_parquet(f"{FOOTPRINTS_PARQUET_DIR}/event_footprints_long_jja_0_1_2.parquet", index=False)
 
 print(df_out.head())
 print(df_out.shape)

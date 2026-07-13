@@ -27,7 +27,7 @@ def semiparametric_quantile(u, params, distn="genpareto", *args, **kwargs) -> ca
     return SemiParametric(u, loc, scale, shape, distn=distn).inverse
 
 
-def hurdle_quantile(x: np.ndarray, p0: float = 0.5, *args, **kwargs) -> callable:
+def hurdle_quantile(x: np.ndarray, p0, *args, **kwargs) -> callable:
     """Inverse hurdle empirical CDF.
 
     x = 0 for u <= p0
@@ -39,7 +39,7 @@ def hurdle_quantile(x: np.ndarray, p0: float = 0.5, *args, **kwargs) -> callable
 
 
 class HurdleEmpirical:
-    def __init__(self, x, p0: float = 0.5, alpha=0, beta=0) -> None:
+    def __init__(self, x, p0, alpha=0, beta=0) -> None:
         x = np.asarray(x)
         x = x[np.isfinite(x)]
 

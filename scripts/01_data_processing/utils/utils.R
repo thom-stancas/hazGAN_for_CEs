@@ -116,7 +116,7 @@ scdf <- function(train, loc, scale, shape, cdf = pgpd){
 hurdle_ecdf <- function(train) {
     train <- train[is.finite(train)]
     pos_train <- train[train > 0]
-    p_0 <- len(train[train == 0]) / len(train) / 2
+    p_0 <- length(train[train == 0]) / length(train) / 3
 
     function(x) {
         u <- rep(NA_real_, length(x))
@@ -124,11 +124,11 @@ hurdle_ecdf <- function(train) {
         zero_mask <- x == 0
         pos_mask    <- x > 0
 
-        u[zero_mask] <- p_0
+        u[zero_mask] <- 0
 
         if (length(pos_train) > 0) {
             Fpos <- ecdf(pos_train)
-            u[pos_mask] <- p_0 + p_0 * Fpos(x[pos_mask])
+            u[pos_mask] <- p_0 + (1 - p_0) * Fpos(x[pos_mask])
         } else {
             u[pos_mask] <- p_0
         }
@@ -502,8 +502,8 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
     # If there are no valid maxima, return NULL
     if (nrow(maxima) == 0) return(NULL)
 
-    # 
     maxima$p_0 <- NA_real_ 
+
     # ---------------------------------------------------------------------------
     # 2 CASES: BOTH TO REMOVE HOLDOUT YEARS FROM TRAINING DATA
     # 1. If the gridcell has an "event_year" column, use it to filter the training data.
@@ -549,7 +549,13 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
     # ----------------------------------------------------------------------------
     # If empirical_only is TRUE and the variable is "num_events", skip GPD fitting
 
-    if (empirical_only && var == "num_events") {
+    if (empirical_only && var == "num_event_days") {
+
+        message(
+            "[", format(Sys.time(), "%H:%M:%S"), "] ",
+            "Grid ", grid_id, ": empirical_only is TRUE and variable is 'num_event_days'. Skipping GPD fitting."
+        )
+
         maxima$thresh <- NA
         maxima$scale <- NA
         maxima$shape <- NA
@@ -557,16 +563,24 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         maxima$pk <- NA
 
         if (nrow(train) >= 1) {
-            trans, p_0 <- hurdle_ecdf(train$variable)
-            maxima$ecdf <- trans(maxima$variable)
+            trans <- hurdle_ecdf(train$variable)
+            transformed <- trans(maxima$variable)
+
+            maxima$ecdf <- transformed$u
+            maxima$p_0  <- transformed$p_0
         } else {
-            maxima$ecdf <- NA
+            maxima$ecdf <- NA_real_
+            maxima$p_0  <- NA_real_
         }
         
-        maxima$p_0 <- p_0
         maxima$scdf <- maxima$ecdf
         maxima$box.test <- NA
-        
+        message(
+            "Grid ", grid_id,
+            " | n_train = ", nrow(train),
+            " | n_zero = ", sum(train$variable == 0, na.rm = TRUE),
+            " | p_0 = ", transformed$p_0
+        )
         return(maxima)
     }
 
