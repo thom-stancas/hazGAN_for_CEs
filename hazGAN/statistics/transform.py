@@ -77,12 +77,22 @@ def invPIT(
         field = fields[c]
 
         theta_i = theta[:, i, c] if theta is not None else None
- 
-        if theta is not None:
-            return semiparametric_quantile(x_i, theta_i, distribution)(u_i)
 
-        if field == "num_event_days":
+        has_valid_fit = (
+            theta_i is not None
+                and theta_i.shape[0] == 3
+                and np.all(np.isfinite(theta_i))
+                and theta_i[1] > 0  # assuming index 1 is scale
+            )
+
+        if has_valid_fit:
+            
+            return semiparametric_quantile(x_i, theta_i)(u_i)
+
+        elif field == "num_event_days":
+            
             return hurdle_quantile(x_i, p0=0.5)(u_i)
+
 
         return quantile(x_i)(u_i)
 

@@ -392,7 +392,7 @@ select_gpd_threshold <- function(var, var_name, nthresholds = 28, nsim = 5, alph
 
     # Create candidate thresholds based on quantiles of the data
     if (var_name == "num_event_days") {
-        pos_train <- train$variable[train$variable > 0]
+        pos_train <- var[is.finite(var) & var > 0]
         thresholds <- quantile(pos_train, probs = seq(0.1, 0.98, length.out = nthresholds+10))
     } else {
         # For continuous data, use quantiles to define thresholds

@@ -12,16 +12,16 @@
 # DATADIR=/soge-home/projects/mistral/alison/data/stylegan
 # python ../../styleGAN-DA/src/train.py --data=${DATADIR}/images.zip --outdir=${DATADIR}/training-runs --gpus=2 --DiffAugment=color,translation,cutout --kimg=300
 
-# conda activate styleGAN
+conda activate styleGAN
 
-# IMGDIR=/data/ncas1/tb261/training/64x64_jja_0_1_1/images/gumbel/rgb
-# OUTDIR=/data/ncas1/tb261/stylegan_events/
+IMGDIR=/data/ncas1/tb261/training/64x64_jja_0_1_1/images/gumbel/rgb
+OUTDIR=/data/ncas1/tb261/stylegan_events/
 
-# mkdir -p ${OUTDIR}
+mkdir -p ${OUTDIR}
 
-# python Repositories/hazGAN_for_CEs/styleGAN-DA/src/dataset_tool.py \
-#     --source=${IMGDIR} \
-#     --dest=${OUTDIR}/images.zip 
+python Repositories/hazGAN_for_CEs/styleGAN-DA/src/dataset_tool.py \
+    --source=${IMGDIR} \
+    --dest=${OUTDIR}/images.zip 
 
 
 source /opt/conda/etc/profile.d/conda.sh
