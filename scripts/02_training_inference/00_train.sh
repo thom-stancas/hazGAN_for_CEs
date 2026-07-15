@@ -12,9 +12,8 @@
 # DATADIR=/soge-home/projects/mistral/alison/data/stylegan
 # python ../../styleGAN-DA/src/train.py --data=${DATADIR}/images.zip --outdir=${DATADIR}/training-runs --gpus=2 --DiffAugment=color,translation,cutout --kimg=300
 
-conda activate styleGAN
 
-IMGDIR=/data/ncas1/tb261/training/64x64_jja_0_1_1/images/gumbel/rgb
+IMGDIR=/data/ncas1/tb261/training/64x64_jja_0_1_2/images/gumbel/rgb
 OUTDIR=/data/ncas1/tb261/stylegan_events/
 
 mkdir -p ${OUTDIR}
@@ -47,7 +46,7 @@ CUDA_VISIBLE_DEVICES=0,1
 
 DATADIR=/data/ncas1/tb261/stylegan_events
 
-python /home/users/t/tb261/Repositories/hazGAN_for_CEs/styleGAN-DA/src/train.py \
+python Repositories/hazGAN_for_CEs/styleGAN-DA/src/train.py \
     --data=${DATADIR}/images.zip \
     --outdir=${DATADIR}/training-runs \
     --gpus=1 \

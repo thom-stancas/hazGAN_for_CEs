@@ -134,6 +134,7 @@ hurdle_ecdf <- function(train) {
     train <- train[is.finite(train)]
     # Get the positive training values for the empirical CDF
     pos_train <- train[train > 0]
+    p_0 <- length(train[train == 0]) / length(train) / 3
 
     function(x) {
         # Initialize the output vector with NA values
@@ -148,16 +149,14 @@ hurdle_ecdf <- function(train) {
 
         # For positive values, compute the empirical CDF using the positive training values
         if (length(pos_train) > 0) {
-            Fpos <- ecdf_(pos_train)
-            u[pos_mask] <- 0.5 + 0.5 * Fpos(x[pos_mask])
+            Fpos <- ecdf(pos_train)
+            u[pos_mask] <- p_0 + (1 - p_0) * Fpos(x[pos_mask])
         } else {
             u[pos_mask] <- 0 # NOTE: This may need to be changed
         }
 
         # Set the CDF to NA for negative values (if any)
         u[x < 0] <- NA_real_
-
-        # Return the computed CDF values
         u
     }
 }
@@ -538,6 +537,7 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
     # If there are no valid maxima, return NULL
     if (nrow(maxima) == 0) return(NULL)
 
+    maxima$p_0 <- NA_real_ 
 
     # ---------------------------------------------------------------------------
     # 2 CASES: BOTH TO REMOVE HOLDOUT YEARS FROM TRAINING DATA
@@ -584,25 +584,40 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
     # ----------------------------------------------------------------------------
     # If empirical_only is TRUE and the variable is "num_events", skip GPD fitting
 
-    # if (empirical_only && var == "num_events") {
-    #     maxima$thresh <- NA
-    #     maxima$scale <- NA
-    #     maxima$shape <- NA
-    #     maxima$p <- NA
-    #     maxima$pk <- NA
+    if (empirical_only && var == "num_event_days") {
 
-    #     if (nrow(train) >= 1) {
-    #         trans <- hurdle_ecdf(train$variable)
-    #         maxima$ecdf <- trans(maxima$variable)
-    #     } else {
-    #         maxima$ecdf <- NA
-    #     }
+        message(
+            "[", format(Sys.time(), "%H:%M:%S"), "] ",
+            "Grid ", grid_id, ": empirical_only is TRUE and variable is 'num_event_days'. Skipping GPD fitting."
+        )
 
-    #     maxima$scdf <- maxima$ecdf
-    #     maxima$box.test <- NA
+        maxima$thresh <- NA
+        maxima$scale <- NA
+        maxima$shape <- NA
+        maxima$p <- NA
+        maxima$pk <- NA
+
+        if (nrow(train) >= 1) {
+            trans <- hurdle_ecdf(train$variable)
+            transformed <- trans(maxima$variable)
+
+            maxima$ecdf <- transformed$u
+            maxima$p_0  <- transformed$p_0
+        } else {
+            maxima$ecdf <- NA_real_
+            maxima$p_0  <- NA_real_
+        }
         
-    #     return(maxima)
-    # }
+        maxima$scdf <- maxima$ecdf
+        maxima$box.test <- NA
+        message(
+            "Grid ", grid_id,
+            " | n_train = ", nrow(train),
+            " | n_zero = ", sum(train$variable == 0, na.rm = TRUE),
+            " | p_0 = ", transformed$p_0
+        )
+        return(maxima)
+    }
 
     # ---------------------------------------------------------------------------
     
@@ -752,7 +767,7 @@ marginal_transformer <- function(df, threshold_selector, var, q = NA, cdf = NULL
     # Keep only the relevant columns for the output
     fields <- c(
         "event_id", "variable", "time", "event.rp", "grid", "lat", "lon",
-        "thresh", "scale", "shape", "p", "pk", "ecdf", "scdf", "box.test"
+        "thresh", "scale", "shape", "p", "pk", "ecdf", "scdf", "box.test", "p_0"
     )
 
     transformed <- transformed[, fields]

@@ -19,6 +19,7 @@ def invPIT(
         u:np.ndarray,
         x:np.ndarray,
         theta:np.ndarray=None,
+        p0_array:np.ndarray=None,
         gumbel_margins:bool=False,
         distribution:str="genpareto"
     ) -> np.ndarray:
@@ -33,6 +34,8 @@ def invPIT(
         Original data for quantile calculation
     theta : np.ndarray, optional (default = None)
         Parameters of fitted Generalized Pareto Distribution (GPD)
+    p0_array : np.ndarray, optional (default = None)
+        Threshold values for each grid cell
     gumbel_margins : bool, optional (default = False)
         Whether to apply inverse Gumbel transform
     
@@ -61,6 +64,8 @@ def invPIT(
         if theta is not None:
             theta = theta.reshape(hw, 3, c)
             theta = theta.transpose(1, 0, 2)
+        if p0_array is not None:
+            p_0_gridcell = p0_array.reshape(hw)
     elif u.ndim == 3:
         n, hw, c = u.shape
     else:
@@ -71,9 +76,10 @@ def invPIT(
     # vectorised numpy transform
     fields = ["max_temp", "max_neg_spi", "num_event_days"]
 
-    def transform(x, u, theta, i, c):
+    def transform(x, u, theta, p_0_gridcell, i, c):
         x_i = x[:, i, c]
         u_i = u[:, i, c]
+        p0_i = p_0_gridcell[i] if p_0_gridcell is not None else None
         field = fields[c]
 
         theta_i = theta[:, i, c] if theta is not None else None
@@ -97,7 +103,7 @@ def invPIT(
         return quantile(x_i)(u_i)
 
     quantiles = np.array([
-        transform(x, u, theta, i, channel)
+        transform(x, u, theta, p_0_gridcell, i, channel)
         for i in range(hw) for channel in range(c) 
     ])
 
@@ -109,6 +115,7 @@ def invPIT(
 
 def invPITDataset(ds:xr.Dataset, theta_var:str="params",
                   u_var:str="uniform", x_var:str="anomaly",
+                  p0_var:str="p_0_num_event_days",
                   gumbel_margins:bool=False) -> xr.DataArray:
     """
     Wrapper of invPIT for xarray.Dataset.
@@ -116,8 +123,9 @@ def invPITDataset(ds:xr.Dataset, theta_var:str="params",
     u = ds[u_var].values
     x = ds[x_var].values
     theta = ds[theta_var].values if theta_var in ds else None
+    p0 = ds[p0_var].values if p0_var in ds else None
 
-    x_inv = invPIT(u, x, theta, gumbel_margins)
+    x_inv = invPIT(u, x, theta, p0, gumbel_margins)
     x_inv = xr.DataArray(x_inv, dims=ds[u_var].dims, coords=ds[u_var].coords)
 
     return x_inv

@@ -124,8 +124,8 @@ def plot_gpd_fits(raw_extra, var_list=None, save_dir=None):
 def main():
 
     # Load the parquet files
-    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja.parquet")
-    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja.parquet")
+    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja_0_1_2.parquet")
+    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja_0_1_2.parquet")
 
 
     # ------------------------------------------------------------------------------------------
@@ -330,11 +330,20 @@ def main():
         .reset_index()
     )
 
+    num_event_days_p0 = (
+        events_df_full[["lat", "lon", "p_0_num_event_days"]]
+        .groupby(["lat", "lon"])
+        .mean()["p_0_num_event_days"]
+        .to_numpy()
+        .reshape(ny, nx)
+    )
+
     param_grid = gdf_params.sort_values(["lat", "lon"])
 
     thresh = param_grid[[f"thresh_{f}" for f in FIELDS]].to_numpy().reshape(ny, nx, len(FIELDS))
     scale  = param_grid[[f"scale_{f}" for f in FIELDS]].to_numpy().reshape(ny, nx, len(FIELDS))
     shape  = param_grid[[f"shape_{f}" for f in FIELDS]].to_numpy().reshape(ny, nx, len(FIELDS))
+
 
     params = np.stack([thresh, scale, shape], axis=-2)
 
@@ -377,6 +386,7 @@ def main():
         "event_rp":     (["event_id"], z),
         "duration":     (["event_id"], s),
         "params":       (["lat", "lon", "param", "field"], params),
+        "p_0_num_event_days": (["lat", "lon"], num_event_days_p0),
         "grid":         (["lat", "lon"], grid),
     }, coords=coords, attrs=attrs)
 
