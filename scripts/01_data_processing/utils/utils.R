@@ -393,7 +393,8 @@ select_gpd_threshold <- function(var, var_name, nthresholds = 28, nsim = 5, alph
     # Create candidate thresholds based on quantiles of the data
     if (var_name == "num_event_days") {
         pos_train <- var[is.finite(var) & var > 0]
-        thresholds <- quantile(pos_train, probs = seq(0.1, 0.98, length.out = nthresholds+10))
+        thresholds <- quantile(pos_train, probs = seq(0.5, 0.98, length.out = nthresholds+10))
+
     } else {
         # For continuous data, use quantiles to define thresholds
         thresholds <- quantile(var, probs = seq(0.7, 0.98, length.out = nthresholds))
@@ -407,6 +408,11 @@ select_gpd_threshold <- function(var, var_name, nthresholds = 28, nsim = 5, alph
     valid_pk <- fits$ForwardStop
     k    <- min(which(valid_pk > alpha)); # lowest index being "accepted"
     # If no thresholds pass, throw an error and set k to 1 (the lowest threshold)
+    if (!is.finite(k) && var_name == "num_event_days") {
+        # Try again with a larger alpha to see if any thresholds pass
+        k <- min(which(valid_pk > 0.1))
+    }
+
     if (!is.finite(k)) {
         stop("All thresholds rejected under H0:X~GPD with α=0.05")
         k <- 1
@@ -801,11 +807,10 @@ empirical_transformer <- function(df, var, chunksize = 256) {
 
 
 
-weibull_transformer <- function(df, metadata, var, q, chunksize = 256) {
+weibull_transformer <- function(df, var, q, chunksize = 256) {
     marginal_transformer(
         df = df,
         threshold_selector = select_weibull_threshold,
-        metadata = metadata,
         var = var,
         q = q,
         cdf = pweibull,
