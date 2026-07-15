@@ -124,8 +124,8 @@ def plot_gpd_fits(raw_extra, var_list=None, save_dir=None):
 def main():
 
     # Load the parquet files
-    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja_0_1_2.parquet")
-    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja_0_1_2.parquet")
+    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja_0_1_3.parquet")
+    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja_0_1_3.parquet")
 
 
     # ------------------------------------------------------------------------------------------
@@ -390,6 +390,8 @@ def main():
         "grid":         (["lat", "lon"], grid),
     }, coords=coords, attrs=attrs)
 
+    # create output dir if it doesn't exist
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     ds.to_netcdf(f"{OUTPUT_DIR}/data.nc")
 
 

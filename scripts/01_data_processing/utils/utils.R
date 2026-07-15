@@ -104,8 +104,13 @@ scdf_ <- function(train, var, loc, scale, shape, cdf = pgpd){
     calculator <- function(x){
 
         if (var == "num_event_days") {
-            u <- hurdle_ecdf(train)(x) 
-            pthresh <- hurdle_ecdf(train)(loc)
+            hurdle <- hurdle_ecdf(train)
+
+            x_transform <- hurdle(x)
+            threshold_transform <- hurdle(loc)
+
+            u <- x_transform$u
+            pthresh <- threshold_transform$u
         }
         else {
             u <- ecdf_(train)(x) # First compute the empirical CDF for all values in x
@@ -114,12 +119,19 @@ scdf_ <- function(train, var, loc, scale, shape, cdf = pgpd){
         }
         
         tail_mask <- x > loc # Identify values in x that exceed the threshold
-        x_tail <- x[tail_mask] 
-        exceedances <- x_tail - loc
-        u_tail <- 1 - (1 - pthresh) * (1 - cdf(exceedances, scale=scale, shape=shape)) 
-        # Compute the semi-parametric CDF for exceedances
-        # Uses the cdf function provided (default is pgpd for GPD)
-        u[tail_mask] <- u_tail
+        if (any(tail_mask)) {
+            exceedances <- x[tail_mask] - loc
+
+            u_tail <- 1 -
+                (1 - pthresh) *
+                (1 - cdf(
+                    exceedances,
+                    scale = scale,
+                    shape = shape
+                ))
+
+            u[tail_mask] <- u_tail
+        }
         return(u)
     }
     return(calculator)
@@ -407,10 +419,10 @@ select_gpd_threshold <- function(var, var_name, nthresholds = 28, nsim = 5, alph
     valid_pk <- fits$ForwardStop
     k    <- min(which(valid_pk > alpha)); # lowest index being "accepted"
     # If no thresholds pass, throw an error and set k to 1 (the lowest threshold)
-    if (!is.finite(k) && var_name == "num_event_days") {
-        # Try again with a larger alpha to see if any thresholds pass
-        k <- min(which(valid_pk > 0.1))
-    }
+    # if (!is.finite(k) && var_name == "num_event_days") {
+    #     # Try again with a larger alpha to see if any thresholds pass
+    #     k <- min(which(valid_pk > 0.1))
+    # }
 
     if (!is.finite(k)) {
         stop("All thresholds rejected under H0:X~GPD with α=0.05")
@@ -570,9 +582,18 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
 
         # But can still fit empirical CDF if there is at least 1 training sample
         if (nrow(train) >= 1) {
-            maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
+            if (var == "num_event_days") {
+                trans <- hurdle_ecdf(train$variable)
+                transformed <- trans(maxima$variable)
+
+                maxima$ecdf <- transformed$u
+                maxima$p_0  <- transformed$p_0
+            } else {
+                maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
+            }
         } else {
             maxima$ecdf <- NA
+            maxima$p_0  <- NA
         }
 
         maxima$scdf <- maxima$ecdf
@@ -653,23 +674,15 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
             cdf = cdf
         )(maxima$variable)
 
-        # Compute the empirical CDF still for the maxima based on the training data
-        # Just for comparison, not used in the GAN training if scdf is good
         if (var == "num_event_days") {
-            if (nrow(train) >= 1) {
             trans <- hurdle_ecdf(train$variable)
             transformed <- trans(maxima$variable)
 
             maxima$ecdf <- transformed$u
             maxima$p_0  <- transformed$p_0
-            } else {
-                maxima$ecdf <- NA_real_
-                maxima$p_0  <- NA_real_
-            }
         } else {
             maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
         }
-
 
         excesses <- maxima$variable[maxima$variable > thresh]
         maxima$box.test <- if (length(excesses) > 1) {
@@ -690,16 +703,11 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         maxima$p      <- 0
         maxima$pk     <- 0
         if (var == "num_event_days") {
-            if (nrow(train) >= 1) {
             trans <- hurdle_ecdf(train$variable)
             transformed <- trans(maxima$variable)
 
             maxima$ecdf <- transformed$u
             maxima$p_0  <- transformed$p_0
-            } else {
-                maxima$ecdf <- NA_real_
-                maxima$p_0  <- NA_real_
-            }
         } else {
             maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
         }

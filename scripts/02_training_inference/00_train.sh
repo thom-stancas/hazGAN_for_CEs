@@ -13,7 +13,7 @@
 # python ../../styleGAN-DA/src/train.py --data=${DATADIR}/images.zip --outdir=${DATADIR}/training-runs --gpus=2 --DiffAugment=color,translation,cutout --kimg=300
 
 
-IMGDIR=/data/ncas1/tb261/training/64x64_jja_0_1_2/images/gumbel/rgb
+IMGDIR=/data/ncas1/tb261/training/64x64_jja_0_1_3/images/gumbel/rgb
 OUTDIR=/data/ncas1/tb261/stylegan_events/
 
 mkdir -p ${OUTDIR}
