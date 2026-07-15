@@ -157,7 +157,7 @@ hurdle_ecdf <- function(train) {
 
         # Set the CDF to NA for negative values (if any)
         u[x < 0] <- NA_real_
-        u
+        list(u = u, p_0 = p_0)
     }
 }
 
@@ -584,40 +584,40 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
     # ----------------------------------------------------------------------------
     # If empirical_only is TRUE and the variable is "num_events", skip GPD fitting
 
-    if (empirical_only && var == "num_event_days") {
+    # if (empirical_only && var == "num_event_days") {
 
-        message(
-            "[", format(Sys.time(), "%H:%M:%S"), "] ",
-            "Grid ", grid_id, ": empirical_only is TRUE and variable is 'num_event_days'. Skipping GPD fitting."
-        )
+    #     message(
+    #         "[", format(Sys.time(), "%H:%M:%S"), "] ",
+    #         "Grid ", grid_id, ": empirical_only is TRUE and variable is 'num_event_days'. Skipping GPD fitting."
+    #     )
 
-        maxima$thresh <- NA
-        maxima$scale <- NA
-        maxima$shape <- NA
-        maxima$p <- NA
-        maxima$pk <- NA
+    #     maxima$thresh <- NA
+    #     maxima$scale <- NA
+    #     maxima$shape <- NA
+    #     maxima$p <- NA
+    #     maxima$pk <- NA
 
-        if (nrow(train) >= 1) {
-            trans <- hurdle_ecdf(train$variable)
-            transformed <- trans(maxima$variable)
+    #     if (nrow(train) >= 1) {
+    #         trans <- hurdle_ecdf(train$variable)
+    #         transformed <- trans(maxima$variable)
 
-            maxima$ecdf <- transformed$u
-            maxima$p_0  <- transformed$p_0
-        } else {
-            maxima$ecdf <- NA_real_
-            maxima$p_0  <- NA_real_
-        }
+    #         maxima$ecdf <- transformed$u
+    #         maxima$p_0  <- transformed$p_0
+    #     } else {
+    #         maxima$ecdf <- NA_real_
+    #         maxima$p_0  <- NA_real_
+    #     }
         
-        maxima$scdf <- maxima$ecdf
-        maxima$box.test <- NA
-        message(
-            "Grid ", grid_id,
-            " | n_train = ", nrow(train),
-            " | n_zero = ", sum(train$variable == 0, na.rm = TRUE),
-            " | p_0 = ", transformed$p_0
-        )
-        return(maxima)
-    }
+    #     maxima$scdf <- maxima$ecdf
+    #     maxima$box.test <- NA
+    #     message(
+    #         "Grid ", grid_id,
+    #         " | n_train = ", nrow(train),
+    #         " | n_zero = ", sum(train$variable == 0, na.rm = TRUE),
+    #         " | p_0 = ", transformed$p_0
+    #     )
+    #     return(maxima)
+    # }
 
     # ---------------------------------------------------------------------------
     
@@ -656,7 +656,16 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         # Compute the empirical CDF still for the maxima based on the training data
         # Just for comparison, not used in the GAN training if scdf is good
         if (var == "num_event_days") {
-            maxima$ecdf <- hurdle_ecdf(train$variable)(maxima$variable)
+            if (nrow(train) >= 1) {
+            trans <- hurdle_ecdf(train$variable)
+            transformed <- trans(maxima$variable)
+
+            maxima$ecdf <- transformed$u
+            maxima$p_0  <- transformed$p_0
+            } else {
+                maxima$ecdf <- NA_real_
+                maxima$p_0  <- NA_real_
+            }
         } else {
             maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
         }
@@ -681,7 +690,16 @@ process_gridcell_marginal <- function(gridcell, var, threshold_selector, cdf,
         maxima$p      <- 0
         maxima$pk     <- 0
         if (var == "num_event_days") {
-            maxima$ecdf <- hurdle_ecdf(train$variable)(maxima$variable)
+            if (nrow(train) >= 1) {
+            trans <- hurdle_ecdf(train$variable)
+            transformed <- trans(maxima$variable)
+
+            maxima$ecdf <- transformed$u
+            maxima$p_0  <- transformed$p_0
+            } else {
+                maxima$ecdf <- NA_real_
+                maxima$p_0  <- NA_real_
+            }
         } else {
             maxima$ecdf <- ecdf_(train$variable)(maxima$variable)
         }

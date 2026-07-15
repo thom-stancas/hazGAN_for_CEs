@@ -97,7 +97,7 @@ def invPIT(
 
         elif field == "num_event_days":
             
-            return hurdle_quantile(x_i, p0=0.5)(u_i)
+            return hurdle_quantile(x_i, p0=p0_i)(u_i)
 
 
         return quantile(x_i)(u_i)
