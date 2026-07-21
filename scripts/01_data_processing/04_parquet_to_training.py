@@ -373,6 +373,7 @@ def main():
         "grid":         (["lat", "lon"], grid),
     }, coords=coords, attrs=attrs)
 
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     ds.to_netcdf(f"{OUTPUT_DIR}/data.nc")
 
 
