@@ -1,56 +1,47 @@
 #!/bin/bash
-# # SBATCH --job-name=styleGAN2
-# # SBATCH --output=train.out
-# # SBATCH --error=train.err
-# # SBATCH --partition=GPU
-# # SBATCH --time=1-00:00:00
+#SBATCH --job-name="train_hazgan"
+#SBATCH --time=24:00:00
+#SBATCH --mem=64G
+#SBATCH --partition=orchid
+#SBATCH --account=orchid
+#SBATCH --qos=orchid
+#SBATCH --gres=gpu:1
+#SBATCH -o out/%j.out
+#SBATCH -e err/%j.err
 
-# DATADIR=/soge-home/projects/mistral/alison/data/stylegan_output
-# source /lustre/soge1/users/spet5107/micromamba/etc/profile.d/micromamba.sh
+# Get the correct .env file for the project
+ROOT_DIR="$(pwd)/Repositories/hazGAN_for_CEs"
 
-# micromamba activate styleGAN
-# DATADIR=/soge-home/projects/mistral/alison/data/stylegan
-# python ../../styleGAN-DA/src/train.py --data=${DATADIR}/images.zip --outdir=${DATADIR}/training-runs --gpus=2 --DiffAugment=color,translation,cutout --kimg=300
+# Load root_dir/.env
+source "${ROOT_DIR}/.env"
 
 # Get version from .env file variable, default to 0_1_3 if not set
 VERSION=${VERSION:-0_1_3}
 
-IMGDIR=/data/ncas1/tb261/training/64x64_jja_${VERSION}/images/gumbel/rgb
-OUTDIR=/data/ncas1/tb261/stylegan_events/
+IMGDIR=${DATA_DIR}/training/64x64_jja_${VERSION}/images/gumbel/rgb
+OUTDIR=${DATA_DIR}/stylegan_events/
 
 mkdir -p ${OUTDIR}
+
+source "${CONDA_SOURCE}"
+conda activate styleGAN
 
 python Repositories/hazGAN_for_CEs/styleGAN-DA/src/dataset_tool.py \
     --source=${IMGDIR} \
     --dest=${OUTDIR}/images.zip 
 
 
-source /opt/conda/etc/profile.d/conda.sh
-conda activate /data/ncas2/tb261/penvs/styleGAN
-export CUDA_HOME="$CONDA_PREFIX"
+CLEAR_TORCH_EXTENSIONS=1
+source ${ROOT_DIR}/scripts/02_training_inference/setup_cuda.sh
 
-export CC="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-gcc"
-export CXX="$CONDA_PREFIX/bin/x86_64-conda-linux-gnu-g++"
-
-export PATH="$CONDA_PREFIX/bin:$CUDA_HOME/bin:$PATH"
-export CPATH="$CUDA_HOME/include:$CUDA_HOME/targets/x86_64-linux/include:${CPATH:-}"
-export LIBRARY_PATH="$CUDA_HOME/lib64:$CUDA_HOME/targets/x86_64-linux/lib:${LIBRARY_PATH:-}"
-export LD_LIBRARY_PATH="$CUDA_HOME/lib64:$CUDA_HOME/targets/x86_64-linux/lib:${LD_LIBRARY_PATH:-}"
-
-export TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0"
-export MAX_JOBS=1
-
-export TORCH_EXTENSIONS_DIR="/data/ncas1/tb261/torch_extensions/debug_${SLURM_JOB_ID:-manual}"
-rm -rf "$TORCH_EXTENSIONS_DIR"
-mkdir -p "$TORCH_EXTENSIONS_DIR"
 
 CUDA_VISIBLE_DEVICES=0,1
 
-DATADIR=/data/ncas1/tb261/stylegan_events
+GEN_DATADIR=/data/ncas1/tb261/stylegan_events
 
 python Repositories/hazGAN_for_CEs/styleGAN-DA/src/train.py \
-    --data=${DATADIR}/images.zip \
-    --outdir=${DATADIR}/training-runs \
+    --data=${GEN_DATADIR}/images.zip \
+    --outdir=${GEN_DATADIR}/training-runs \
     --gpus=1 \
     --DiffAugment=color,translation,cutout \
     --kimg=300 \
