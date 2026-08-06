@@ -12,8 +12,10 @@
 # DATADIR=/soge-home/projects/mistral/alison/data/stylegan
 # python ../../styleGAN-DA/src/train.py --data=${DATADIR}/images.zip --outdir=${DATADIR}/training-runs --gpus=2 --DiffAugment=color,translation,cutout --kimg=300
 
+# Get version from .env file variable, default to 0_1_3 if not set
+VERSION=${VERSION:-0_1_3}
 
-IMGDIR=/data/ncas1/tb261/training/64x64_jja_0_1_2/images/gumbel/rgb
+IMGDIR=/data/ncas1/tb261/training/64x64_jja_${VERSION}/images/gumbel/rgb
 OUTDIR=/data/ncas1/tb261/stylegan_events/
 
 mkdir -p ${OUTDIR}

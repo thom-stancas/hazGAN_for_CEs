@@ -2,15 +2,10 @@
 This script searches the samples directory for generated images and the training directory
 for training data and parameters to convert images back to original scale.
 """
-# %%
-# quick defaults
-TRAINRES = 64
-STEP     = 300
-MODEL    = "00019-images-low_shot-kimg300-color-translation-cutout"
-WD       = "/data/ncas1/tb261/"
 
 
 import os
+import sys
 import glob
 import torch
 import argparse
@@ -23,7 +18,13 @@ import matplotlib.pyplot as plt
 from hazGAN.statistics import invPIT, invPITDataset
 from torchvision.transforms.functional import resize
 
-
+# %%
+# quick defaults
+MODEL_NUM = sys.argv[1] if len(sys.argv) > 1 else "00001"
+TRAINRES = 64
+STEP     = 300
+WD       = os.environ.get("DATADIR")
+VERSION = os.environ.get("VERSION", "0_1_3")
 
 def apply_colormap(grayscale_array, colormap_name='Spectral_r'):
     normalized = grayscale_array.astype(float) / 255
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', '-d', dest="WD", type=str, default=WD, help='Training runs directory.')
-    parser.add_argument('--model', '-m', dest="MODEL", type=str, default=MODEL)
+    parser.add_argument('--model', '-m', dest="MODEL", type=str, required=True)
     parser.add_argument('--step', '-s', dest='STEP', type=int, default=STEP)
     parser.add_argument('--train-res', '-t', dest='TRAINRES', type=int, default=TRAINRES, help="Training data's original resolution.")
     parser.add_argument("--res", '-r', type=int, default=64, choices=[16, 32, 64, 128, 256, 512], help="Sample resolution")
@@ -76,7 +77,7 @@ if __name__ == "__main__":
 
     # source training data
     datadir = os.path.join(WD, "training")
-    datadir = os.path.join(datadir, f"{TRAINRES}x{TRAINRES}_jja_0_1_2")
+    datadir = os.path.join(datadir, f"{TRAINRES}x{TRAINRES}_jja_{VERSION}")
 
     # model run directories
     resultsdir = os.path.join(WD, "stylegan_events/training-runs/", MODEL, "results")

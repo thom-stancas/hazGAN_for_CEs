@@ -23,6 +23,7 @@ ROOT_DIR = Path(os.environ["ROOT_DIR"])
 FOOTPRINTS_PARQUET_DIR = Path(os.environ["PARQUETDIR"])
 HOT_DRY_EVENTS_DIR = Path(os.environ["HOT_DRY_EVENTS_DIR"])
 OUTPUT_DIR = Path(os.environ["TRAINING_DIR"])
+VERSION = os.environ.get("VERSION", "0_1_3")
 
 
 # ----------------------------------------------
@@ -124,8 +125,8 @@ def plot_gpd_fits(raw_extra, var_list=None, save_dir=None):
 def main():
 
     # Load the parquet files
-    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "events_jja_0_1_2.parquet")
-    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / "event_footprints_long_jja_0_1_2.parquet")
+    events_df = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / f"events_jja_{VERSION}.parquet")
+    event_long = pd.read_parquet(FOOTPRINTS_PARQUET_DIR / f"event_footprints_long_jja_{VERSION}.parquet")
 
 
     # ------------------------------------------------------------------------------------------
@@ -391,6 +392,7 @@ def main():
         "grid":         (["lat", "lon"], grid),
     }, coords=coords, attrs=attrs)
 
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     ds.to_netcdf(f"{OUTPUT_DIR}/data.nc")
 
 

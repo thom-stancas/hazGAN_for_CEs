@@ -6,7 +6,14 @@
 #SBATCH --time=05:00:00
 #SBATCH --dependency=afterok:116190
 
-MODEL="00021-images-low_shot-kimg300-color-translation-cutout"
+# Get model num from the command line argument, throw an error if not provided
+if [ -z "$1" ]; then
+    echo "Error: Model number argument is required."
+    exit 1
+fi
+MODEL_NUM=$1
+
+MODEL="${MODEL_NUM}-images-low_shot-kimg300-color-translation-cutout"
 STEP=300
 DATADIR=/data/ncas1/tb261/stylegan_events/training-runs/${MODEL}
 

@@ -9,6 +9,7 @@ load_dot_env(".env")
 ROOT_DIR <- Sys.getenv("ROOT_DIR")
 setwd(ROOT_DIR)
 PARQUETDIR <- Sys.getenv("PARQUETDIR")
+VERSION <- Sys.getenv("VERSION")
 
 source("scripts/01_data_processing/utils/utils.R")
 source("scripts/01_data_processing/utils/settings.R")
@@ -20,7 +21,7 @@ NDRYRUN <- 1000
 #%%######## LOAD FOOTPRINT DATA ################################################
 
 # Read NetCDF files matching the pattern
-data <- read_parquet(file.path(PARQUETDIR, "event_footprints_long_jja_0_1_2.parquet"))
+data <- read_parquet(file.path(PARQUETDIR, paste0("event_footprints_long_jja_", VERSION, ".parquet")))
 
 # Optional dry run: keep only a the first NDRYRUN grids (for testing) so that we fit the dist across all events but only on a subset of the data
 if (DRYRUN) {
@@ -63,7 +64,7 @@ events$thresh.q <- Q  # keep track of threshold used
 #%%######## SAVE RESULTS #######################################################
 if (!DRYRUN) {
   print("Saving...")
-  out_file <- file.path(PARQUETDIR, "events_jja_0_1_2.parquet")
+  out_file <- file.path(PARQUETDIR, paste0("events_jja_", VERSION, ".parquet"))
   write_parquet(events, out_file)
   cat("\nSaved as:", out_file)
   print(paste0("Finished! ", length(unique(events$event_id)), " events processed."))
